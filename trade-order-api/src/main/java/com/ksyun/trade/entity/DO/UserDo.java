@@ -1,12 +1,17 @@
 package com.ksyun.trade.entity.DO;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.*;
 
-@Setter
 @Getter
+@Setter
+@EqualsAndHashCode
+@ToString
+@NoArgsConstructor
 public class UserDo {
 
+    @JsonIgnore
     private Integer id;
 
     private String username;
