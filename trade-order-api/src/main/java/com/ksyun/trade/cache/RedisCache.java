@@ -8,14 +8,8 @@ public class RedisCache<K, V> implements Cache<K, V> {
 
     private final Jedis jedis;  // Redis客户端
 
-    public RedisCache(String host, Integer port, String password, Integer db) {
-        this.jedis = new Jedis(host, port);
-        if (password != null && !password.isEmpty()) {
-            jedis.auth(password);
-        }
-        if (db != null) {
-            jedis.select(db);
-        }
+    public RedisCache(Jedis jedis) {
+        this.jedis = jedis;
     }
 
     @Override
