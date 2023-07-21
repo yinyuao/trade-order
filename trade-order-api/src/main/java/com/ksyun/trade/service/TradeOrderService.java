@@ -8,6 +8,7 @@ import com.ksyun.trade.entity.DO.OrderDo;
 import com.ksyun.trade.entity.DO.ConfigDo;
 import com.ksyun.trade.entity.DO.RegionDo;
 import com.ksyun.trade.entity.DO.UserDo;
+import com.ksyun.trade.utils.RemoteRequestUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +41,7 @@ public class TradeOrderService {
     @Autowired
     private HttpServletRequest request;
 
+
     /**
      * 根据订单ID查询订单信息及关联数据
      *
@@ -53,9 +55,9 @@ public class TradeOrderService {
         orderDo.setUpsteam(request.getHeader("Host"));
 
         // 获取远程用户数据
-        Map<String, Object> userMap = getRemoteData(orderDo.getUserId(), "online", "user");
+        Map<String, Object> userMap = RemoteRequestUtils.getRemoteData(url, orderDo.getUserId(), "online", "user");
         // 获取远程地区数据列表
-        Map<String, Object> regionMap = getRemoteData(null, "online", "region", "list");
+        Map<String, Object> regionMap = RemoteRequestUtils.getRemoteData(url, null, "online", "region", "list");
 
         // 获取订单配置信息
         ConfigDo configDo = configMapper.getConfigById(orderDo.getId());
@@ -79,26 +81,5 @@ public class TradeOrderService {
                 });
 
         return orderDo;
-    }
-
-    /**
-     * 发起远程请求获取数据
-     *
-     * @param id    数据ID（如果有）
-     * @param names 请求路径中的名称参数
-     * @return 远程返回的数据Map
-     */
-    private Map<String, Object> getRemoteData(Integer id, String... names) {
-        // 使用UriComponentsBuilder构建URL
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(url);
-        uriBuilder.pathSegment(names);
-
-        // 将参数添加到URL的路径中
-        if (id != null) {
-            uriBuilder.pathSegment(id.toString());
-        }
-        RestTemplate restTemplate = new RestTemplate();
-        URI uri = uriBuilder.build().toUri();
-        return restTemplate.getForObject(uri, Map.class);
     }
 }
