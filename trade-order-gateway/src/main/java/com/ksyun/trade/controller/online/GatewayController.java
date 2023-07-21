@@ -17,7 +17,7 @@ public class GatewayController {
      */
     @RequestMapping(value = "/online/queryOrderInfo", produces = "application/json")
     public Object queryOrderInfo(Integer id) {
-        return gatewayService.loadLalancing(id, "trade_order");
+        return gatewayService.loadBalancing(id, "online", "trade_order");
     }
 
     /**
@@ -25,7 +25,7 @@ public class GatewayController {
      */
     @RequestMapping(value = "/online/queryRegionName", produces = "application/json")
     public Object queryRegionName(Integer regionId) {
-        return gatewayService.loadLalancing(regionId, "");
+        return gatewayService.loadBalancing(regionId, "online", "region");
     }
 
     /**
@@ -33,7 +33,7 @@ public class GatewayController {
      */
     @RequestMapping(value = "/online/deduct", produces = "application/json")
     public Object deduct(@RequestBody VoucherDeductDTO param) {
-        return gatewayService.loadLalancing(param, "");
+        return gatewayService.loadBalancing(param, "");
     }
 
     /**
