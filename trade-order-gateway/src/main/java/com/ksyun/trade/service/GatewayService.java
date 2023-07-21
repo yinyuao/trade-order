@@ -16,9 +16,6 @@ public class GatewayService {
     @Value("${actions}")
     private String actions;
 
-    @Autowired
-    private HttpServletRequest request;
-
     public Object loadLalancing(Object param, String interfaceName) {
         // 1. 模拟路由 (负载均衡) 获取接口
         String url = random();
