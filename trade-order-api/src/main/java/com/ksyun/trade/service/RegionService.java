@@ -22,33 +22,30 @@ public class RegionService {
     @Value("${meta.url}")
     private String url;
 
-    private final Cache<String, String> twoLevelCache;
-
     @Autowired
-    public RegionService(@Value("${spring.redis.host}") String host,
-                         @Value("${spring.redis.port}") Integer port,
-                         @Value("${spring.redis.password}") String password,
-                         @Value("${spring.redis.db}") Integer db) {
-        Cache<String, String> memoryCache = new MemoryCache<>(1000, 60 * 60 * 1000);
-        Cache<String, String> redisCache = new RedisCache<>(host, port, password, db);
-        this.twoLevelCache = new TwoLevelCache<>(memoryCache, redisCache);
-    }
+    private Cache<String, String> twoLevelCache;
+
 
     /**
      * 根据机房ID 查询机房名称
      * @param regionId 机房ID
      * @return 机房名称
      */
-    @Retryable(maxAttempts = 5, include = Exception.class)
-    public Object query(Integer regionId) throws Exception {
+    @Retryable(maxAttempts = 5, include = RuntimeException.class)
+    public Object query(Integer regionId) {
         String cacheKey = url + "-regionId-" + regionId;
         String cachedData = twoLevelCache.get(cacheKey);
+
         if (cachedData == null) {
             Map<String, Object> value = RemoteRequestUtils.getRemoteData(url, regionId, "online", "region", "name");
-            // 检查value中的code是否为500
-            if (value.containsKey("code") && !value.get("code").equals(200)) {
-                throw new Exception("出错！");
+            int responseCode = (int) value.getOrDefault("code", -1);
+
+            // 检查 code 是否为 200
+            if (responseCode != 200) {
+                String errorMsg = (String) value.getOrDefault("message", "Error occurred!");
+                throw new RuntimeException(errorMsg);
             }
+
             String data = (String) value.get("data");
             twoLevelCache.put(cacheKey, data);
             return data;
@@ -56,4 +53,5 @@ public class RegionService {
             return cachedData;
         }
     }
+
 }
