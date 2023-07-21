@@ -54,7 +54,6 @@ public class TradeOrderService {
      * @return 包含订单信息及关联数据的对象
      */
     public Object query(Integer id) {
-
         // 生成缓存的key
         String key = "order" + id;
         String cachedData = twoLevelCache.get(key);
@@ -70,30 +69,56 @@ public class TradeOrderService {
         }
 
         // 从数据库中获取订单信息
-        OrderDo orderDo = orderMapper.getOrderById(id);
-        // 设置订单的upsteam为请求头中的Host信息
-        orderDo.setUpsteam(request.getHeader("Host"));
+        OrderDo orderDo = getOrderFromDatabase(id);
 
         // 获取远程用户数据
-        Map<String, Object> userMap = RemoteRequestUtils.getRemoteData(url, orderDo.getUserId(), "online", "user");
+        UserDo userDo = getRemoteUserData(orderDo.getUserId());
 
         // 获取订单配置信息
-        ConfigDo configDo = configMapper.getConfigById(orderDo.getId());
-        // 将用户数据映射为UserDo对象
-        UserDo userDo = objectMapper.convertValue(userMap.get("data"), UserDo.class);
+        ConfigDo configDo = getOrderConfig(orderDo.getId());
 
         // 设置订单的配置信息及用户信息
         orderDo.setConfigDo(configDo);
         orderDo.setUserDo(userDo);
 
+        // 获取地区数据列表
+        List<RegionDo> list = getRegionDataList();
+
+        // 查找符合条件的RegionDo元素，并设置到orderDo中
+        setMatchingRegion(orderDo, list);
+
+        // 将数据存入缓存
+        cacheOrderData(key, orderDo);
+
+        return orderDo;
+    }
+
+    // 从数据库中获取订单信息
+    private OrderDo getOrderFromDatabase(Integer id) {
+        OrderDo orderDo = orderMapper.getOrderById(id);
+        // 设置订单的upsteam为请求头中的Host信息
+        orderDo.setUpsteam(request.getHeader("Host"));
+        return orderDo;
+    }
+
+    // 获取远程用户数据
+    private UserDo getRemoteUserData(Integer userId) {
+        Map<String, Object> userMap = RemoteRequestUtils.getRemoteData(url, userId, "online", "user");
+        return objectMapper.convertValue(userMap.get("data"), UserDo.class);
+    }
+
+    // 获取订单配置信息
+    private ConfigDo getOrderConfig(Integer orderId) {
+        return configMapper.getConfigById(orderId);
+    }
+
+    // 获取地区数据列表
+    private List<RegionDo> getRegionDataList() {
         String jsonRegions = twoLevelCache.get(url + "/online/region");
         List<RegionDo> list = new ArrayList<>();
-
-        // 若缓存有数据直接从缓存取数据
         if (jsonRegions != null) {
             try {
-                list = objectMapper.readValue(jsonRegions, new TypeReference<List<RegionDo>>() {
-                });
+                list = objectMapper.readValue(jsonRegions, new TypeReference<List<RegionDo>>() {});
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -101,11 +126,13 @@ public class TradeOrderService {
             // 获取远程地区数据列表
             Map<String, Object> regionMap = RemoteRequestUtils.getRemoteData(url, null, "online", "region", "list");
             // 将地区数据列表映射为List<RegionDo>对象
-            list = objectMapper.convertValue(regionMap.get("data"), new TypeReference<List<RegionDo>>() {
-            });
+            list = objectMapper.convertValue(regionMap.get("data"), new TypeReference<List<RegionDo>>() {});
         }
+        return list;
+    }
 
-        // 查找符合条件的RegionDo元素，并设置到orderDo中
+    // 查找符合条件的RegionDo元素，并设置到orderDo中
+    private void setMatchingRegion(OrderDo orderDo, List<RegionDo> list) {
         list.stream()
                 .filter(region -> Objects.equals(region.getId(), orderDo.getRegionId()))
                 .findFirst()
@@ -114,13 +141,14 @@ public class TradeOrderService {
                     region.setId(null);
                     orderDo.setRegionDo(region);
                 });
+    }
 
-        // 将数据存入缓存
+    // 将数据存入缓存
+    private void cacheOrderData(String key, OrderDo orderDo) {
         try {
             twoLevelCache.put(key, objectMapper.writeValueAsString(orderDo));
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
-        return orderDo;
     }
 }
