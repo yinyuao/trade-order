@@ -19,7 +19,7 @@ public class RegionController {
     private RegionService regionService;
 
     @RequestMapping("/{regionId}")
-    public RestResult query(@PathVariable("regionId") Integer regionId) {
+    public RestResult query(@PathVariable("regionId") Integer regionId) throws Exception {
         return RestResult.success().data(regionService.query(regionId));
     }
 }
