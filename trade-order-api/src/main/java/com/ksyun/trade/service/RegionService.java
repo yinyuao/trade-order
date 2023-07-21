@@ -16,6 +16,12 @@ public class RegionService {
     @Value("${meta.url}")
     private String url;
 
+    /**
+     * 根据机房ID 查询机房名称
+     *
+     * @param regionId 机房ID
+     * @return 机房名称
+     */
     public Object query(Integer regionId) {
         Map<String, Object> value = RemoteRequestUtils.getRemoteData(url, regionId, "online", "region", "name");
         return value.get("data");
