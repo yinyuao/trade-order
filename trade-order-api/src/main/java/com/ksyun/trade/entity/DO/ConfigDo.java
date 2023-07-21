@@ -1,12 +1,16 @@
 package com.ksyun.trade.entity.DO;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.*;
 
-@Setter
 @Getter
-public class ProductDo {
+@Setter
+@EqualsAndHashCode
+@ToString
+@NoArgsConstructor
+public class ConfigDo {
 
+    @JsonIgnore
     private Integer id;
 
     private String itemNo;

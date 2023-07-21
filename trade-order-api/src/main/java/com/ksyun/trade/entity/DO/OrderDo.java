@@ -1,29 +1,39 @@
 package com.ksyun.trade.entity.DO;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.*;
 
 import java.math.BigDecimal;
 
-@Setter
 @Getter
+@Setter
+@EqualsAndHashCode
+@ToString
+@NoArgsConstructor
 public class OrderDo {
-
-    private Integer id;
 
     private String upsteam;
 
+    private Integer id;
+
+    @JsonIgnore
     private Integer userId;
 
+    @JsonIgnore
     private Integer regionId;
 
+    @JsonIgnore
     private Integer productId;
 
     private BigDecimal priceValue;
 
+    @JsonProperty("user")
     private UserDo userDo;
 
+    @JsonProperty("region")
     private RegionDo regionDo;
 
-    private ProductDo productDo;
+    @JsonProperty("configs")
+    private ConfigDo configDo;
 }

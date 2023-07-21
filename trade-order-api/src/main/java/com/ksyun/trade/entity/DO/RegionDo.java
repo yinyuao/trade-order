@@ -1,10 +1,15 @@
 package com.ksyun.trade.entity.DO;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.*;
 
-@Setter
 @Getter
+@Setter
+@EqualsAndHashCode
+@ToString
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class RegionDo {
 
     private Integer id;
@@ -13,6 +18,7 @@ public class RegionDo {
 
     private String name;
 
+    @JsonIgnore
     private Integer status;
 
 }
