@@ -7,5 +7,12 @@ info:
 server:
   port: 8088
 
+jedis:
+  redis:
+    host: 8.130.138.230
+    port: 6379
+    password: 990528yya
+    db: 3
+
 actions: http://campus.query1.ksyun.com:8089,http://campus.query2.ksyun.com:8089
 meta: http://campus.meta.ksyun.com:8090
