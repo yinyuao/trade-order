@@ -1,10 +1,9 @@
 package com.ksyun.trade.service;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.ksyun.common.util.mapper.JacksonMapper;
 import com.ksyun.trade.cache.Cache;
 import com.ksyun.trade.dao.OrderMapper;
 import com.ksyun.trade.dao.ConfigMapper;
@@ -31,6 +30,8 @@ public class TradeOrderService {
 
     @Value("${meta.url}")
     private String url;
+
+    private static final JacksonMapper jacksonMapper = new JacksonMapper(JsonInclude.Include.NON_NULL);
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -60,12 +61,9 @@ public class TradeOrderService {
 
         // 如果缓存存在就直接取出来
         if (cachedData != null) {
-            try {
-                OrderDo orderDo = objectMapper.readValue(cachedData, OrderDo.class);
-                return orderDo;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            // json 转实体类
+            OrderDo orderDo = jacksonMapper.fromJson(cachedData, OrderDo.class);
+            return orderDo;
         }
 
         // 从数据库中获取订单信息
@@ -117,11 +115,7 @@ public class TradeOrderService {
         String jsonRegions = twoLevelCache.get(url + "/online/region");
         List<RegionDo> list = new ArrayList<>();
         if (jsonRegions != null) {
-            try {
-                list = objectMapper.readValue(jsonRegions, new TypeReference<List<RegionDo>>() {});
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            list = jacksonMapper.fromJson(jsonRegions, new TypeReference<List<RegionDo>>() {});
         } else {
             // 获取远程地区数据列表
             Map<String, Object> regionMap = RemoteRequestUtils.getRemoteData(url, null, "online", "region", "list");
@@ -145,10 +139,6 @@ public class TradeOrderService {
 
     // 将数据存入缓存
     private void cacheOrderData(String key, OrderDo orderDo) {
-        try {
-            twoLevelCache.put(key, objectMapper.writeValueAsString(orderDo));
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
+        twoLevelCache.put(key, jacksonMapper.toJson(orderDo));
     }
 }
