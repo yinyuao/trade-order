@@ -31,9 +31,9 @@ public class GatewayController {
     /**
      * 订单优惠券抵扣 (POST json)
      */
-    @RequestMapping(value = "/online/deduct", produces = "application/json")
+    @RequestMapping(value = "/online/voucher/deduct", produces = "application/json")
     public Object deduct(@RequestBody VoucherDeductDTO param) {
-        return gatewayService.loadBalancing(param, "");
+        return gatewayService.loadBalancing(param, "online", "voucher", "deduct");
     }
 
     /**
