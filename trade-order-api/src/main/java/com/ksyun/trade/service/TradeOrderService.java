@@ -56,7 +56,7 @@ public class TradeOrderService {
      */
     public Object query(Integer id) {
         // 生成缓存的key
-        String key = "order" + id;
+        String key = "order-" + id;
         String cachedData = twoLevelCache.get(key);
 
         // 如果缓存存在就直接取出来

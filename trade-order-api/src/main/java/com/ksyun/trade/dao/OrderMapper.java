@@ -9,7 +9,7 @@ import java.util.List;
 public interface OrderMapper {
 
     // 根据ID查询订单
-    @Select("SELECT * FROM ksc_trade_order WHERE id = #{id}")
+    @Select("SELECT id, user_id, region_id, product_id, price_value FROM ksc_trade_order WHERE id = #{id}")
     @Results({
             @Result(column = "user_id", property = "userId"),
             @Result(column = "region_id", property = "regionId"),
