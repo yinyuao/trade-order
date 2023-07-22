@@ -19,7 +19,7 @@ public class CacheConfig {
     @Bean
     public Cache<String, String> twoLevelCache() {
         Cache<String, String> memoryCache = new MemoryCache<>(1000, 60 * 60 * 1000);
-        Cache<String, String> redisCache = new RedisCache<>(jedisPool.getResource());
+        Cache<String, String> redisCache = new RedisCache<>(jedisPool);
         return new TwoLevelCache<>(memoryCache, redisCache);
     }
 }

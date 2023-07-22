@@ -6,23 +6,27 @@ import redis.clients.jedis.JedisPool;
 
 public class RedisCache<K, V> implements Cache<K, V> {
 
-    private final Jedis jedis;  // Redis客户端
+    private final JedisPool jedisPool;
 
-    public RedisCache(Jedis jedis) {
-        this.jedis = jedis;
+    public RedisCache(JedisPool jedisPool) {
+        this.jedisPool = jedisPool;
     }
 
     @Override
     public V get(K key) {
-        String value = jedis.get(key.toString());  // 从Redis中获取缓存项
-        if (value != null) {
-            return (V) value;
+        try (Jedis jedis = jedisPool.getResource()) {
+            String value = jedis.get(key.toString());  // 从Redis中获取缓存项
+            if (value != null) {
+                return (V) value;
+            }
+            return null;
         }
-        return null;
     }
 
     @Override
     public void put(K key, V value) {
-        jedis.set(key.toString(), value.toString());  // 将缓存项存储到Redis中
+        try (Jedis jedis = jedisPool.getResource()) {
+            jedis.set(key.toString(), value.toString());  // 将缓存项存储到Redis中
+        }
     }
 }
