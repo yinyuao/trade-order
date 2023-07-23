@@ -30,22 +30,30 @@ public class VoucherService {
     private static final JacksonMapper jacksonMapper = new JacksonMapper(JsonInclude.Include.NON_NULL);
 
     public void deduct(VoucherDo voucherDo) {
+        // 检查优惠券是否已经存在
         Integer count = voucherMapper.checkVoucherNoExists(voucherDo.getVoucherNo());
         if(count == 0) {
-            // 生成缓存的key
+            // 生成用于取缓存订单数据的key
             String key = "order-" + voucherDo.getOrderId();
-            String cachedData = twoLevelCache.get(key);
+
+            // 从缓存中检索订单数据
             OrderDo orderDo;
-            // 如果缓存存在就直接取出来
+            String cachedData = twoLevelCache.get(key);
             if (cachedData != null) {
-                // json 转实体类
+                // 从缓存或数据库中检索订单数据
                 orderDo = jacksonMapper.fromJson(cachedData, OrderDo.class);
             } else {
                 orderDo = orderMapper.getOrderById(voucherDo.getOrderId());
             }
+
             BigDecimal priceValue = orderDo.getPriceValue();
-            voucherDo.setAfterDeductAmount(priceValue);
-            voucherDo.setBeforeDeductAmount(priceValue.subtract(voucherDo.getAmount()));
+
+            // 计算优惠券的抵扣前和抵扣后的金额
+            BigDecimal beforeDeductAmount = priceValue.subtract(voucherMapper.getAllDeductAmountByOrderId(voucherDo.getOrderId()));
+            voucherDo.setBeforeDeductAmount(beforeDeductAmount);
+            voucherDo.setAfterDeductAmount(beforeDeductAmount.subtract(voucherDo.getAmount()));
+
+            // 将优惠券数据插入数据库
             voucherMapper.insertVoucher(voucherDo);
         } else {
             throw new DuplicateKeyException("优惠卷重复！");
