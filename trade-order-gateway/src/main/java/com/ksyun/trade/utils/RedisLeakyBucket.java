@@ -1,13 +1,14 @@
 package com.ksyun.trade.utils;
 
 import com.ksyun.trade.rest.RestResult;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -19,17 +20,8 @@ public class RedisLeakyBucket {
     private static final int DRIP_RATE_MS = 1000; // 滴漏速率（每秒1个请求）
     private static UUID uuid = UUID.randomUUID();
 
-    @Value("${jedis.redis.host}")
-    String host;
-
-    @Value("${jedis.redis.port}")
-    Integer port;
-
-    @Value("${jedis.redis.password:}")
-    String password;
-
-    @Value("${jedis.redis.db:0}")
-    Integer db;
+    @Autowired
+    private JedisPool jedisPool;
 
     @Value("${actions}")
     private String actions;
@@ -44,23 +36,20 @@ public class RedisLeakyBucket {
      * @return 请求通过时的响应数据，或者限流时的错误响应数据
      */
     public ResponseEntity<Object> leakyBucket() {
-        try (Jedis jedis = new Jedis(host, port)) {
-            jedis.auth(password);
-            jedis.select(db);
+        try (Jedis jedis = jedisPool.getResource()) {
 
             long currentTime = System.currentTimeMillis();
             // 移除有序集合中分数（时间戳）小于当前时间 - DRIP_RATE_MS 的元素
-            jedis.zremrangeByScore(REDIS_KEY, 0, (double) (currentTime - DRIP_RATE_MS) / 1000);
+            jedis.zremrangeByScore(REDIS_KEY, 0, currentTime - DRIP_RATE_MS);
 
             // 获取当前有序集合的元素数量，即漏桶中的请求数
             long bucketSize = jedis.zcard(REDIS_KEY);
 
             if (bucketSize < BUCKET_CAPACITY) {
                 // 如果桶有空间，将当前请求的时间戳加入有序集合，并返回成功的响应
-                jedis.zadd(REDIS_KEY, (double) (currentTime / 1000), Long.valueOf(currentTime).toString());
+                jedis.zadd(REDIS_KEY, currentTime, String.valueOf(currentTime));
                 return getResponseData();
             } else {
-                System.out.println("aaaaa");
                 // 否则，由于限流拒绝请求，返回限流的错误响应
                 return getErrorResponse();
             }
