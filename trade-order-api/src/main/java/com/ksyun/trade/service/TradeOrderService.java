@@ -14,15 +14,18 @@ import com.ksyun.trade.entity.DO.UserDo;
 import com.ksyun.trade.utils.RemoteRequestUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
@@ -42,19 +45,25 @@ public class TradeOrderService {
     @Autowired
     private ConfigMapper configMapper;
 
-    @Autowired
-    private HttpServletRequest request;
+//    @Autowired
+//    private HttpServletRequest request;
 
     @Autowired
     private Cache<String, String> twoLevelCache;
 
+    @Autowired
+    @Qualifier("asyncTaskExecutor")
+    private ThreadPoolTaskExecutor asyncTaskExecutor;
+
     /**
      * 根据订单ID查询订单信息及关联数据
      *
-     * @param id 订单ID
+     * @param id     订单ID
+     * @param reques
      * @return 包含订单信息及关联数据的对象
      */
-    public Object query(Integer id) {
+    @Async("asyncTaskExecutor")
+    public CompletableFuture<Object> query(Integer id, HttpServletRequest reques) {
         // 生成缓存的key
         String key = "order-" + id;
         String cachedData = twoLevelCache.get(key);
@@ -63,17 +72,23 @@ public class TradeOrderService {
         if (cachedData != null) {
             // json 转实体类
             OrderDo orderDo = jacksonMapper.fromJson(cachedData, OrderDo.class);
-            return orderDo;
+            return CompletableFuture.completedFuture(orderDo);
         }
 
         // 从数据库中获取订单信息
         OrderDo orderDo = getOrderFromDatabase(id);
 
-        // 获取远程用户数据
-        UserDo userDo = getRemoteUserData(orderDo.getUserId());
-
-        // 获取订单配置信息
+        // 从数据库获取配置信息
         ConfigDo configDo = getOrderConfig(orderDo.getId());
+
+        CompletableFuture<UserDo> userFuture = getRemoteUserDataAsync(orderDo.getUserId());
+        CompletableFuture<List<RegionDo>> regionFuture = getRegionDataListAsync();
+
+        // 等待两个异步任务完成
+        CompletableFuture.allOf(userFuture, regionFuture).join();
+
+        UserDo userDo = userFuture.join();
+        List<RegionDo> regionList = regionFuture.join();
 
         // 设置订单的配置信息及用户信息
         orderDo.setConfigDo(configDo);
@@ -85,18 +100,33 @@ public class TradeOrderService {
         // 查找符合条件的RegionDo元素，并设置到orderDo中
         setMatchingRegion(orderDo, list);
 
-        // 将数据存入缓存
-        cacheOrderData(key, orderDo);
+        // 设置订单的upsteam为请求头中的Host信息
+        orderDo.setUpsteam(reques.getHeader("Host"));
 
-        return orderDo;
+        // 将数据存入缓存
+        twoLevelCache.put(key, jacksonMapper.toJson(orderDo));
+
+        return CompletableFuture.completedFuture(orderDo);
     }
 
     // 从数据库中获取订单信息
     private OrderDo getOrderFromDatabase(Integer id) {
         OrderDo orderDo = orderMapper.getOrderById(id);
-        // 设置订单的upsteam为请求头中的Host信息
-        orderDo.setUpsteam(request.getHeader("Host"));
         return orderDo;
+    }
+
+    private CompletableFuture<UserDo> getRemoteUserDataAsync(Integer userId) {
+        return CompletableFuture.supplyAsync(() -> {
+            // 异步获取远程用户数据
+            return getRemoteUserData(userId);
+        }, asyncTaskExecutor);
+    }
+
+    private CompletableFuture<List<RegionDo>> getRegionDataListAsync() {
+        return CompletableFuture.supplyAsync(() -> {
+            // 异步获取地区数据列表
+            return getRegionDataList();
+        }, asyncTaskExecutor);
     }
 
     // 获取远程用户数据
@@ -112,7 +142,8 @@ public class TradeOrderService {
 
     // 获取地区数据列表
     private List<RegionDo> getRegionDataList() {
-        String jsonRegions = twoLevelCache.get(url + "/online/region");
+        String key = url + "/online/region";
+        String jsonRegions = twoLevelCache.get(key);
         List<RegionDo> list = new ArrayList<>();
         if (jsonRegions != null) {
             list = jacksonMapper.fromJson(jsonRegions, new TypeReference<List<RegionDo>>() {});
@@ -121,6 +152,10 @@ public class TradeOrderService {
             Map<String, Object> regionMap = RemoteRequestUtils.getRemoteData(url, null, "online", "region", "list");
             // 将地区数据列表映射为List<RegionDo>对象
             list = objectMapper.convertValue(regionMap.get("data"), new TypeReference<List<RegionDo>>() {});
+
+            // 放入缓存
+            String jsonList = jacksonMapper.toJson(list);
+            twoLevelCache.put(key, jsonList);
         }
         return list;
     }
@@ -137,8 +172,4 @@ public class TradeOrderService {
                 });
     }
 
-    // 将数据存入缓存
-    private void cacheOrderData(String key, OrderDo orderDo) {
-        twoLevelCache.put(key, jacksonMapper.toJson(orderDo));
-    }
 }
