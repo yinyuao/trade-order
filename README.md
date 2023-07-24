@@ -143,9 +143,12 @@ trade-order-service
   {
     "code": 200,
     "msg": "ok",
-    "requestId": "6ebc37ee-b46b-43c9-ac2d-c2117b149b27",
-    "data": ["campus.query1.ksyun.com", "campus.query2.ksyun.com"]
-  }
+    "requestId": "b97cb585-fb99-4254-92ac-1ff33a1dc1f0",
+    "data": [
+        "http://campus.query1.ksyun.com:8089",
+        "http://campus.query2.ksyun.com:8089"
+    ]
+}
   ```
 
 ## 限流
@@ -263,5 +266,5 @@ public void run(ApplicationArguments args) {
 
 如有任何问题或疑虑，请联系：
 
-- 殷钰奥：[807362114@qq.com]
+- 殷钰奥：[yinyuao@kingsoft.com]
 - 项目仓库：[[yuao yin / trade-order-service · GitLab](http://120.92.88.48/yinyuao/trade-order-service)]
