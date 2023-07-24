@@ -1,6 +1,6 @@
 info:
   app:
-    name: trade-order-gateway
+    name: trade-order-gateway-yinyuao
     env: local
     ver: v0.0.1
 

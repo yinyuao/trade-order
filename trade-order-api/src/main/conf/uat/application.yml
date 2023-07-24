@@ -10,7 +10,7 @@ server:
 
 info:
   app:
-    name: trade-order-api
+    name: trade-order-api-yinyuao
     env: uat
     ver: v0.0.1
 
