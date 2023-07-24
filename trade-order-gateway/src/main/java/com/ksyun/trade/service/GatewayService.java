@@ -1,19 +1,19 @@
 package com.ksyun.trade.service;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 import com.ksyun.common.util.mapper.JacksonMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.servlet.http.HttpServletRequest;
 import java.net.URI;
+import java.util.Enumeration;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -40,10 +40,10 @@ public class GatewayService {
         String url = random();
         // 2. 请求转发
         String res = "";
-        if (request.getMethod().equals("GET")) {
-            res = forwardingGet(url, param, interfaceNames);
-        } else if (request.getMethod().equals("POST")){
-            res = forwardingPost(url, param, interfaceNames);
+        if ("GET".equals(request.getMethod())) {
+            res = forwardingGet(url, param, interfaceNames, getHeader(request));
+        } else if ("POST".equals(request.getMethod())){
+            res = forwardingPost(url, param, interfaceNames, getHeader(request));
         }
         return res;
     }
@@ -54,10 +54,10 @@ public class GatewayService {
      * @param url            接口URL
      * @param param          请求参数对象
      * @param interfaceNames 接口名称
-     * @type get             请求类型
+     * @param headers        请求头部信息
      * @return 转发后接口的响应结果
      */
-    private String forwardingGet(String url, Object param, String... interfaceNames) {
+    private String forwardingGet(String url, Object param, String[] interfaceNames, Map<String, String> headers) {
         // 使用UriComponentsBuilder构建URL
         UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(url);
         uriBuilder.pathSegment(interfaceNames);
@@ -68,8 +68,11 @@ public class GatewayService {
         }
 
         RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders httpHeaders = createHttpHeaders(headers);
+
+        HttpEntity<String> entity = new HttpEntity<>(httpHeaders);
         URI uri = uriBuilder.build().toUri();
-        return restTemplate.getForObject(uri, String.class);
+        return restTemplate.exchange(uri, HttpMethod.GET, entity, String.class).getBody();
     }
 
     /**
@@ -78,26 +81,22 @@ public class GatewayService {
      * @param url            接口URL
      * @param param          请求参数对象
      * @param interfaceNames 接口名称
-     * @type post            请求类型
+     * @param headers        请求头部信息
      * @return 转发后接口的响应结果
      */
-    private String forwardingPost(String url, Object param, String... interfaceNames) {
+    private String forwardingPost(String url, Object param, String[] interfaceNames, Map<String, String> headers) {
         // 使用UriComponentsBuilder构建URL
         UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(url);
         uriBuilder.pathSegment(interfaceNames);
 
         RestTemplate restTemplate = new RestTemplate();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpHeaders httpHeaders = createHttpHeaders(headers);
 
-        // 将参数对象转换为 JSON 字符串
         String requestBody = jacksonMapper.toJson(param);
-
-        // 构造 HttpEntity，包含请求头和请求体
-        HttpEntity<String> requestEntity = new HttpEntity<>(requestBody, headers);
+        HttpEntity<String> entity = new HttpEntity<>(requestBody, httpHeaders);
 
         URI uri = uriBuilder.build().toUri();
-        return restTemplate.postForObject(uri, requestEntity, String.class);
+        return restTemplate.exchange(uri, HttpMethod.POST, entity, String.class).getBody();
     }
 
     /**
@@ -112,5 +111,40 @@ public class GatewayService {
         String[] action = actions.split(",");
         int index = ThreadLocalRandom.current().nextInt(action.length);
         return action[index];
+    }
+
+    /**
+     * 创建 HttpHeaders 对象，将传入的请求头部信息添加到其中
+     *
+     * @param headers 请求头部信息
+     * @return HttpHeaders 对象
+     */
+    private HttpHeaders createHttpHeaders(Map<String, String> headers) {
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+        if (headers != null && !headers.isEmpty()) {
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                httpHeaders.add(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return httpHeaders;
+    }
+
+    /**
+     * 获取请求的头部信息
+     *
+     * @param request HttpServletRequest对象
+     * @return 包含头部信息的Map，其中键为头部名称，值为头部的值
+     */
+    private Map<String, String> getHeader(HttpServletRequest request) {
+        Map<String, String> headers = Maps.newHashMap();
+        Enumeration<String> enumeration = request.getHeaderNames();
+        while (enumeration.hasMoreElements()) {
+            String header = enumeration.nextElement();
+            headers.put(header.toUpperCase(), request.getHeader(header));
+        }
+        return headers;
     }
 }
