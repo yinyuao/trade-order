@@ -32,21 +32,22 @@ public class CacheInitializer implements ApplicationRunner {
     @Autowired
     private JedisPool jedisPool;
 
+    // 删除初始化远程数据列表
     @Override
     public void run(ApplicationArguments args) {
-        // 获取远程地区数据列表
-        Map<String, Object> regionMap = RemoteRequestUtils.getRemoteData(url, null, "online", "region", "list");
-        // 将地区数据列表映射为List<RegionDo>对象
-        List<RegionDo> list = objectMapper.convertValue(regionMap.get("data"), new TypeReference<List<RegionDo>>() {});
-
-        Jedis jedis = jedisPool.getResource();
-        try {
-            String key = url + "/online/region";
-            String jsonList = objectMapper.writeValueAsString(list);
-            jedis.set(key, jsonList);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
+//        // 获取远程地区数据列表
+//        Map<String, Object> regionMap = RemoteRequestUtils.getRemoteData(url, null, "online", "region", "list");
+//        // 将地区数据列表映射为List<RegionDo>对象
+//        List<RegionDo> list = objectMapper.convertValue(regionMap.get("data"), new TypeReference<List<RegionDo>>() {});
+//
+//        Jedis jedis = jedisPool.getResource();
+//        try {
+//            String key = url + "/online/region";
+//            String jsonList = objectMapper.writeValueAsString(list);
+//            jedis.set(key, jsonList);
+//        } catch (JsonProcessingException e) {
+//            e.printStackTrace();
+//        }
 
     }
 }
