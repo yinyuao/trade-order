@@ -148,7 +148,7 @@ trade-order-service
         "http://campus.query1.ksyun.com:8089",
         "http://campus.query2.ksyun.com:8089"
     ]
-}
+  }
   ```
 
 ## 限流
@@ -257,6 +257,91 @@ public void run(ApplicationArguments args) {
 
 #### 接口
 每个查询接口都会先去查询二级缓存，若缓存没有再去数据库查找数据。
+
+## 异步
+
+由于机房查询接口，接口响应耗时4s，用户信息查询，接口响应耗时2s，查询订单时使用CompletableFuture，采用异步加快响应时间。
+
+### 使用方法
+
+要使用异步查询订单信息，只需调用query方法并传入订单ID。query方法将返回一个CompletableFuture，您可以通过调用join方法来获取最终的查询结果。
+
+```java
+    // 调用异步查询订单信息
+    CompletableFuture<Object> future = tradeOrderService.query(id);
+
+    // 等待异步查询完成并获取结果
+    Object result = future.join();
+
+    // 根据实际需求处理查询结果
+    // 例如，将结果转换为JSON返回给客户端
+    String jsonResponse = objectMapper.writeValueAsString(result);
+
+```
+
+```java
+	/**
+     * 根据订单ID查询订单信息及关联数据（异步方式）
+     *
+     * @param id 订单ID
+     * @param request HttpServletRequest对象，用于在异步任务中获取请求信息
+     * @return 包含订单信息及关联数据的CompletableFuture
+     */
+     @Async("asyncTaskExecutor")
+    public CompletableFuture<Object> query(Integer id, HttpServletRequest reques) {
+        // 生成缓存的key
+        String key = "order-" + id;
+        String cachedData = twoLevelCache.get(key);
+
+        // 如果缓存存在就直接取出来
+        if (cachedData != null) {
+            // json 转实体类
+            OrderDo orderDo = jacksonMapper.fromJson(cachedData, OrderDo.class);
+            return CompletableFuture.completedFuture(orderDo);
+        }
+
+        // 从数据库中获取订单信息
+        OrderDo orderDo = getOrderFromDatabase(id);
+
+        // 从数据库获取配置信息
+        ConfigDo configDo = getOrderConfig(orderDo.getId());
+
+        CompletableFuture<UserDo> userFuture = getRemoteUserDataAsync(orderDo.getUserId());
+        CompletableFuture<List<RegionDo>> regionFuture = getRegionDataListAsync();
+
+        // 等待两个异步任务完成
+        CompletableFuture.allOf(userFuture, regionFuture).join();
+
+        UserDo userDo = userFuture.join();
+        List<RegionDo> regionList = regionFuture.join();
+
+        // 设置订单的配置信息及用户信息
+        orderDo.setConfigDo(configDo);
+        orderDo.setUserDo(userDo);
+
+        // 获取地区数据列表
+        List<RegionDo> list = getRegionDataList();
+
+        // 查找符合条件的RegionDo元素，并设置到orderDo中
+        setMatchingRegion(orderDo, list);
+
+        // 设置订单的upsteam为请求头中的Host信息
+        orderDo.setUpsteam(reques.getHeader("Host"));
+
+        // 将数据存入缓存
+        twoLevelCache.put(key, jacksonMapper.toJson(orderDo));
+
+        return CompletableFuture.completedFuture(orderDo);
+    }
+```
+### 注意事项
+
+* 异步查询订单信息的同时，系统也可以执行其他任务，从而提高整体系统性能和响应速度。。
+* 在异步查询中，请确保合理处理可能出现的异常情况，例如查询失败或超时等。
+
+### 结论
+
+通过使用异步查询，我们可以在同一请求中同时查询多个数据，提高系统性能和响应速度。异步查询是优化系统的一种常用方式，可以在复杂的业务场景中带来显著的性能提升。在实际应用中，请根据系统需求和性能优化要求选择合适的异步查询策略。
 
 ## 注意事项
 
